@@ -1,10 +1,16 @@
-import { PlaceholderPage } from '@/components/dashboard/placeholder-page';
+import { CustomersPanel } from '@/components/customers/customers-panel';
+import { Header } from '@/components/layout/header';
 
 export default function CustomersPage() {
   return (
-    <PlaceholderPage
-      title="Customers"
-      description="Manage customer profiles and contact information"
-    />
+    <>
+      <Header
+        title="Customers"
+        subtitle="Manage customer profiles and contact information"
+      />
+      <div className="p-6">
+        <CustomersPanel />
+      </div>
+    </>
   );
 }

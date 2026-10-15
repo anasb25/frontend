@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Shield, Users } from 'lucide-react';
 import { Header } from '@/components/layout/header';
-import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { RolesPanel } from '@/components/roles/roles-panel';
 import { UserManagementPanel } from '@/components/users/user-management-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +40,7 @@ export function SettingsContent() {
 
   if (!isAdmin(user)) {
     return (
-      <DashboardLayout>
+      <>
         <Header title="Settings" subtitle="Admin access required" />
         <div className="p-6">
           <Card className="modern-card max-w-lg p-8 text-center">
@@ -50,12 +49,12 @@ export function SettingsContent() {
             </p>
           </Card>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <Header
         title="Settings"
         subtitle="Manage users, roles, and system access"
@@ -114,6 +113,6 @@ export function SettingsContent() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

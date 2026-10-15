@@ -4,11 +4,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { AddUserDialog, CreateUserPayload } from '@/components/users/add-user-dialog';
 import { UsersTable } from '@/components/users/users-table';
+import { TablePagination } from '@/components/crud/table-pagination';
+import { TableSearch } from '@/components/crud/table-search';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { UserRole } from '@/lib/auth';
-import { api, ApiError, Role, UserWithRole } from '@/lib/api';
+import {
+  api,
+  ApiError,
+  DEFAULT_PAGE_SIZE,
+  PaginationMeta,
+  Role,
+  UserWithRole,
+} from '@/lib/api';
 
 interface UserManagementPanelProps {
   title?: string;
@@ -16,6 +26,15 @@ interface UserManagementPanelProps {
   showHeader?: boolean;
   className?: string;
 }
+
+const emptyMeta: PaginationMeta = {
+  total: 0,
+  page: 1,
+  limit: DEFAULT_PAGE_SIZE,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
+};
 
 export function UserManagementPanel({
   title = 'User Management',
@@ -26,44 +45,66 @@ export function UserManagementPanel({
   const { token } = useAuth();
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta>(emptyMeta);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebouncedValue(searchInput, 300);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!token) return;
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
-    setIsLoading(true);
-    setError('');
+  const loadData = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token) return;
 
-    try {
-      const [rolesData, usersData] = await Promise.all([
-        api.getRoles(token),
-        api.getUsers(token),
-      ]);
-      setRoles(rolesData);
-      setUsers(usersData);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Failed to load users',
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [rolesData, usersResult] = await Promise.all([
+          api.getRoles(token),
+          api.getUsers(token, {
+            page,
+            limit: DEFAULT_PAGE_SIZE,
+            search: search || undefined,
+          }),
+        ]);
+        if (signal?.aborted) return;
+        setRoles(rolesData);
+        setUsers(usersResult.data);
+        setMeta(usersResult.meta);
+      } catch (err) {
+        if (signal?.aborted) return;
+        setError(
+          err instanceof ApiError ? err.message : 'Failed to load users',
+        );
+      } finally {
+        if (!signal?.aborted) setIsLoading(false);
+      }
+    },
+    [token, page, search],
+  );
 
   useEffect(() => {
-    loadData();
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
   }, [loadData]);
 
   const handleCreateUser = async (payload: CreateUserPayload) => {
     if (!token) return;
 
-    const created = await api.createUser(token, payload);
-    setUsers((current) =>
-      [...current, created].sort((a, b) => a.username.localeCompare(b.username)),
-    );
+    await api.createUser(token, payload);
+    if (page === 1) {
+      await loadData();
+    } else {
+      setPage(1);
+    }
   };
 
   const handleRoleChange = async (userId: string, roleName: UserRole) => {
@@ -107,7 +148,7 @@ export function UserManagementPanel({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={loadData}
+                  onClick={() => loadData()}
                   disabled={isLoading}
                 >
                   <RefreshCw className={isLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
@@ -135,11 +176,26 @@ export function UserManagementPanel({
             </div>
           ) : (
             <div className="px-6 py-5">
+              <div className="mb-4">
+                <TableSearch
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  placeholder="Search username or full name..."
+                />
+              </div>
               <UsersTable
                 users={users}
                 roles={roles}
                 updatingUserId={updatingUserId}
                 onRoleChange={handleRoleChange}
+                emptyMessage={
+                  search ? 'No users match your search.' : 'No users found yet.'
+                }
+              />
+              <TablePagination
+                meta={meta}
+                onPageChange={setPage}
+                disabled={isLoading}
               />
             </div>
           )}

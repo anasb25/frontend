@@ -39,20 +39,41 @@ interface ModalProps {
 
 export function Modal({ open, onClose, children, className }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [closing, setClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
 
-  useBodyScrollLock({ enabled: open });
+  useBodyScrollLock({ enabled: visible });
   useDismissibleLayer({
-    enabled: open,
+    enabled: visible && !closing,
     onDismiss: onClose,
     containerRef: panelRef,
   });
 
   useEffect(() => setMounted(true), []);
 
-  if (!open || !mounted) return null;
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (open) {
+      setVisible(true);
+      setClosing(false);
+      return;
+    }
+
+    if (visible) {
+      setClosing(true);
+      const timer = window.setTimeout(() => {
+        setVisible(false);
+        setClosing(false);
+      }, 220);
+      return () => window.clearTimeout(timer);
+    }
+  }, [open, mounted, visible]);
+
+  if (!visible || !mounted) return null;
 
   return createPortal(
     <ModalContext.Provider value={{ onClose, titleId, descriptionId }}>
@@ -60,7 +81,10 @@ export function Modal({ open, onClose, children, className }: ModalProps) {
         <button
           type="button"
           aria-label="Close modal"
-          className="ui-overlay-backdrop absolute inset-0"
+          className={cn(
+            'ui-overlay-backdrop absolute inset-0',
+            closing ? 'animate-fade-out' : 'animate-fade-in',
+          )}
           onClick={onClose}
         />
 
@@ -70,7 +94,10 @@ export function Modal({ open, onClose, children, className }: ModalProps) {
           aria-modal="true"
           aria-labelledby={titleId}
           aria-describedby={descriptionId}
-          className="ui-overlay-panel animate-fade-in-scale relative w-full max-w-lg overflow-hidden rounded-3xl"
+          className={cn(
+            'ui-overlay-panel relative w-full max-w-lg overflow-hidden rounded-3xl',
+            closing ? 'animate-fade-out-scale' : 'animate-fade-in-scale',
+          )}
         >
           {children}
         </div>

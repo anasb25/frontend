@@ -2,7 +2,6 @@
 
 import { Construction } from 'lucide-react';
 import { Header } from '@/components/layout/header';
-import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 
 interface PlaceholderPageProps {
@@ -12,7 +11,7 @@ interface PlaceholderPageProps {
 
 export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
   return (
-    <DashboardLayout>
+    <>
       <Header title={title} subtitle={description} />
       <div className="flex items-center justify-center p-6">
         <div className="modern-card w-full max-w-md animate-fade-in-scale p-10 text-center">
@@ -28,6 +27,6 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
           </Button>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
